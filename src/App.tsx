@@ -371,6 +371,21 @@ const getOccupiedBounds = (furniture: Furniture, pxPerCm: number) => {
   return { bodyRect, occupiedBounds };
 };
 
+const ensureUniqueIds = <T extends { id: string }>(
+  items: T[],
+  seedIds?: Set<string>,
+): T[] => {
+  const used = seedIds ?? new Set<string>();
+  return items.map((item) => {
+    let nextId = item.id;
+    while (!nextId || used.has(nextId)) {
+      nextId = genId();
+    }
+    used.add(nextId);
+    return nextId === item.id ? item : { ...item, id: nextId };
+  });
+};
+
 function CollapsibleSection({
   id,
   title,
@@ -1146,7 +1161,7 @@ export default function App() {
       if (!data) return;
       const nextScale = data.scale ?? DEFAULT_SCALE;
       const nextPxPerCm = nextScale.pixelLength / nextScale.realCm;
-      const nextRoomZones = (data.roomZones ?? []).map((zone) => {
+      const nextRoomZonesRaw = (data.roomZones ?? []).map((zone) => {
         const bounds = getPolygonBounds(zone.points);
         return {
           ...zone,
@@ -1160,7 +1175,9 @@ export default function App() {
           locked: zone.locked ?? false,
         };
       });
-      const nextFurnitures = (data.furnitures ?? []).map((item) => ({
+      const roomIds = new Set<string>();
+      const nextRoomZones = ensureUniqueIds(nextRoomZonesRaw, roomIds);
+      const nextFurnituresRaw = (data.furnitures ?? []).map((item) => ({
         ...item,
         roomId: item.roomId ?? null,
         openSpace: item.openSpace
@@ -1173,6 +1190,7 @@ export default function App() {
         isEquipment: item.isEquipment ?? isEquipmentType(item.type),
         locked: item.locked ?? false,
       }));
+      const nextFurnitures = ensureUniqueIds(nextFurnituresRaw, roomIds);
 
       applySnapshot({
         scale: nextScale,
@@ -1788,7 +1806,7 @@ export default function App() {
 
         const nextScale = data.scale ?? DEFAULT_SCALE;
         const nextPxPerCm = nextScale.pixelLength / nextScale.realCm;
-        const nextRoomZones = (data.roomZones ?? []).map((zone) => {
+        const nextRoomZonesRaw = (data.roomZones ?? []).map((zone) => {
           const bounds = getPolygonBounds(zone.points);
           return {
             ...zone,
@@ -1802,7 +1820,9 @@ export default function App() {
             locked: zone.locked ?? false,
           };
         });
-        const nextFurnitures = (data.furnitures ?? []).map((item) => ({
+        const roomIds = new Set<string>();
+        const nextRoomZones = ensureUniqueIds(nextRoomZonesRaw, roomIds);
+        const nextFurnituresRaw = (data.furnitures ?? []).map((item) => ({
           ...item,
           roomId: item.roomId ?? null,
           openSpace: item.openSpace
@@ -1815,6 +1835,7 @@ export default function App() {
           isEquipment: item.isEquipment ?? isEquipmentType(item.type),
           locked: item.locked ?? false,
         }));
+        const nextFurnitures = ensureUniqueIds(nextFurnituresRaw, roomIds);
         let nextBackground: BackgroundState | null = null;
         let nextBgImage: string | null = data.bgImage ?? null;
 
